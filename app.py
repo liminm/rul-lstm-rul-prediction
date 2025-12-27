@@ -1,10 +1,22 @@
 from typing import List
+import torch
 
-from typing import List
+
 from pydantic import BaseModel, Field
 import pandas as pd
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+
+from model import EngineRULPredictor
+import joblib
+
+#input_size = 24 # Sensors (21) + Settings (3)
+#model = EngineRULPredictor(input_size=input_size, hidden_size=512, num_layers=2, dropout=0.2)
+
+#model.load_state_dict(torch.load('models/lstm_model.pth', map_location=torch.device('cpu')))
+
+#model.eval()
+model_path = 'models/lstm_model.pth'
 
 class EngineData(BaseModel):
     unit_nr: int
@@ -46,7 +58,17 @@ class InferencePayload(BaseModel):
 async def lifespan(app: FastAPI):
     # 1. Startup logic goes here
     print("Loading model...")
+    input_size = 18 # Sensors (21) + Settings (3)
+    model = EngineRULPredictor(input_size=input_size, hidden_size=512, num_layers=2, dropout=0.2)
+
+    model.load_state_dict(torch.load('models/lstm_model.pth', map_location=torch.device('cpu')))
+    model.eval()
+
+    app.state.model = model
+    app.state.model.eval()
     
+    app.state.scaler = joblib.load('models/scaler.pkl') # <--- 2. Load the scaler
+
     yield  # This separates startup from shutdown
     
     # 2. Shutdown logic goes here
@@ -54,3 +76,47 @@ async def lifespan(app: FastAPI):
 
 # We pass the lifespan function to the FastAPI app
 app = FastAPI(lifespan=lifespan)
+
+
+@app.post("/predict/")
+#async def predict_rul(payload: InferencePayload, request: Request):
+async def predict_rul(request: Request):
+    max_rul = 542  # use the same value you trained with
+
+    index_names = ['unit_nr', 'time_cycles']
+    setting_names = ['setting_1', 'setting_2', 'setting_3']
+    sensor_names = ['s_{}'.format(i) for i in range(1, 22)] 
+    col_names = index_names + setting_names + sensor_names
+    df = pd.read_csv("data/train_FD001.txt", sep="\s+", header=None, names=col_names)
+    df = df.head(50)  # Use only the first 50 rows for prediction
+
+    # Convert payload to DataFrame
+    #df = payload.to_dataframe()
+
+    df = df.drop(columns=["unit_nr", "time_cycles"])  # Drop non-feature columns for scaling
+    
+    #features_to_drop = ['unit_nr', 'time_cycles', "s_1", "s_5", "s_10", "s_16", "s_18", "s_19"]
+    #df = df.drop(columns=features_to_drop)
+    scaler = request.app.state.scaler
+    scaled = scaler.transform(df)
+    df = pd.DataFrame(scaled, columns=df.columns, index=df.index)
+
+    features_to_drop = ["s_1", "s_5", "s_10", "s_16", "s_18", "s_19"]
+    df = df.drop(columns=features_to_drop)
+
+    input_tensor = torch.tensor(df.to_numpy(), dtype=torch.float32)
+    input_tensor = input_tensor.unsqueeze(0)  # Add batch dimension
+
+    model = request.app.state.model
+
+    # Perform prediction
+    with torch.no_grad():
+        prediction = model(input_tensor)
+        #preds_real = prediction.cpu().numpy().flatten() * max_rul
+        print(f"Raw model prediction: {prediction.item()}")
+        scaled_prediction = prediction.item() * max_rul
+
+    # Assuming the model outputs a single RUL value
+    #rul_prediction = prediction.item()
+    
+    return {"predicted_rul": scaled_prediction}
