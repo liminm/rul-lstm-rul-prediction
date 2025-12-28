@@ -10,7 +10,7 @@ const SensorDisplay = ({ value, label }: SensorDisplayProps) => {
     return (
         <div>
             <span>{label}: </span>
-            <span>{value+100}</span>
+            <span>{value}</span>
         </div>
     );
 };
