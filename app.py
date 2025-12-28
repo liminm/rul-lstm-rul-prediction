@@ -9,6 +9,7 @@ from fastapi import FastAPI, Request
 
 from model import EngineRULPredictor
 import joblib
+from fastapi.middleware.cors import CORSMiddleware
 
 #input_size = 24 # Sensors (21) + Settings (3)
 #model = EngineRULPredictor(input_size=input_size, hidden_size=512, num_layers=2, dropout=0.2)
@@ -76,7 +77,18 @@ async def lifespan(app: FastAPI):
 
 # We pass the lifespan function to the FastAPI app
 app = FastAPI(lifespan=lifespan)
+origins = [
+    "http://localhost:5173",  # The address of your React App
+    "http://127.0.0.1:5173",
+]
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],
+)
 
 @app.post("/predict/")
 #async def predict_rul(payload: InferencePayload, request: Request):
