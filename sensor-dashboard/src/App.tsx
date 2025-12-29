@@ -1,5 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import SensorDisplay from './components/SensorDisplay'
+
+
+import { LineChart, Line, XAxis, YAxis, Brush, ResponsiveContainer, CartesianGrid, Tooltip } from 'recharts';
 
   const SENSOR_NAMES = {
     s_1: "Fan Inlet Temp",
@@ -37,6 +40,10 @@ function App() {
 
   const [windowRange, setWindowRange] = useState({ startIndex: 0, endIndex: 50 });
 
+  const [fullHistory, setFullHistory] = useState([]);
+
+  const [selectedEngine, setSelectedEngine] = useState(1);
+
   const handleBrushChange = (newRange) => {
       // newRange looks like: { startIndex: 10, endIndex: 60 }
       // ... logic goes here ...
@@ -55,6 +62,7 @@ function App() {
       );
 
       const data = await response.json();
+
 
 
 
@@ -86,8 +94,27 @@ function App() {
     };
   };
 
+  const fetchFullHistory = async () => {
+    try {
+      const response = await fetch("http://127.0.0.1:8001/sensors/?limit=500");  
+      const data = await response.json();
+      
+      console.log("Full History Data:", data); // <--- Add this!
+      
+      setFullHistory(data);
+    } catch (err) {
+      console.error("Timeline fetch failed:", err);
+    }
+  }
+
   useEffect(() => {
       // Call the function immediately
+      //fetchData();
+      fetchFullHistory();
+    }, []);
+
+  useEffect(() => {
+      // Refetch data whenever the windowRange changes
       fetchData();
     }, [windowRange]);
 
@@ -95,9 +122,37 @@ function App() {
     { id: 1, label: 'Loading...', value: 0, history: [] }
   ]);
 
+  //const masterSensor = sensors.find(s => s.label === "Phys Fan Speed") || sensors[0];
+  const masterSensor = sensors.find(s => s.label === "LPT Outlet Temp") || sensors[0];
   return (
     <>
       <h1>Engine Dashboard</h1>
+      {/* --- MASTER TIMELINE CONTROL --- */}
+            <div className="card" style={{ width: '100%', height: '300px', marginBottom: '20px' }}>
+              <h3>Flight Timeline (Select Range)</h3>
+              {fullHistory.length > 0 && (  
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={fullHistory}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time_cycles" />
+                  <YAxis domain={['auto', 'auto']} />
+                  
+                  {/* The Reference Line (Fan Speed) */}
+                  <Line type="monotone" dataKey="s_8" stroke="#8884d8" dot={false} />
+                  
+                  {/* The Magic Brush Tool 🖌️ */}
+                  <Brush 
+                      dataKey="time_cycles" 
+                      height={30} 
+                      stroke="#8884d8"
+                      onChange={handleBrushChange} // Connects to your state!
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              )}
+            </div>
+            {/* ------------------------------- */}
+
       <div className="card">
         <button onClick={() => fetchData()}>
           Update Sensor
