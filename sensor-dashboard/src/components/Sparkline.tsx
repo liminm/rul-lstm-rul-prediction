@@ -1,4 +1,4 @@
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer , YAxis} from 'recharts';
 
 interface SparklineProps {
   label: string;
@@ -7,41 +7,40 @@ interface SparklineProps {
 
 const Sparkline = ({ label, history }: SparklineProps) => {
 
-   const latestValue = history[history.length - 1]?.value || 0;
+    const latestValue = history[history.length - 1]?.value || 0;
 
-  return (
+    return (
     <div style={{ 
-      border: '1px solid #ddd', 
-      borderRadius: '8px', 
-      padding: '10px', 
-      textAlign: 'left',
-      backgroundColor: 'white' 
+        border: '1px solid #ddd', 
+        borderRadius: '8px', 
+        padding: '10px', 
+        textAlign: 'left',
+        backgroundColor: 'white' 
     }}>
-      {/* 1. The Header Info */}
-      <div style={{ fontSize: '12px', color: '#666' }}>{label}</div>
-      <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+        {/* 1. The Header Info */}
+        <div style={{ fontSize: '12px', color: '#666' }}>{label}</div>
+        <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
         {latestValue.toFixed(2)}
-      </div>
+        </div>
 
-      {/* 2. The Tiny Chart 📉 */}
-      <div style={{ width: '100%', height: 50 }}>
+        {/* 2. The Tiny Chart 📉 */}
+        <div style={{ width: '100%', height: 50 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={history}>
-            
-            {/* ??? WHAT GOES HERE ??? */}
+            <LineChart data={history}>
+            <YAxis domain={['dataMin', 'dataMax']} hide={true} />
             <Line 
-              type="monotone" 
-              dataKey="value" 
-              stroke="#8884d8" 
-              strokeWidth={2} 
-              dot={false} 
+                type="monotone" 
+                dataKey="value" 
+                stroke="#8884d8" 
+                strokeWidth={2} 
+                dot={false} 
             />
 
-          </LineChart>
+            </LineChart>
         </ResponsiveContainer>
-      </div>
+        </div>
     </div>
-  );
+    );
 };
 
 export default Sparkline;
