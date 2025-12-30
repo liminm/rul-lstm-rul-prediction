@@ -56,6 +56,10 @@ class InferencePayload(BaseModel):
         data_dicts = [edata.model_dump() for edata in self.engine_data_sequence]
         return pd.DataFrame(data_dicts)
 
+class EngineRequest(BaseModel):
+    unit_nr: int
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. Startup logic goes here
@@ -98,8 +102,43 @@ app.add_middleware(
 )
 
 @app.post("/predict/")
-#async def predict_rul(payload: InferencePayload, request: Request):
-async def predict_rul(request: Request):
+async def predict_rul(request: Request, payload: EngineRequest):
+    max_rul = 542  # use the same value you trained with
+
+    index_names = ['unit_nr', 'time_cycles']
+    setting_names = ['setting_1', 'setting_2', 'setting_3']
+    sensor_names = ['s_{}'.format(i) for i in range(1, 22)] 
+    col_names = index_names + setting_names + sensor_names
+    df = pd.read_csv("data/test_FD001.txt", sep="\s+", header=None, names=col_names)
+    df = df[df.unit_nr == payload.unit_nr]
+
+    df = df.drop(columns=["unit_nr", "time_cycles"])  # Drop non-feature columns for scaling
+    scaler = request.app.state.scaler
+    scaled = scaler.transform(df)
+    df = pd.DataFrame(scaled, columns=df.columns, index=df.index)
+
+    features_to_drop = ["s_1", "s_5", "s_10", "s_16", "s_18", "s_19"]
+    df = df.drop(columns=features_to_drop)
+
+    input_tensor = torch.tensor(df.to_numpy(), dtype=torch.float32)
+    input_tensor = input_tensor.unsqueeze(0)  # Add batch dimension
+
+    model = request.app.state.model
+
+    # Perform prediction
+    with torch.no_grad():
+        prediction = model(input_tensor)
+        print(f"Raw model prediction: {prediction.item()}")
+        scaled_prediction = prediction.item() * max_rul
+    
+    return {"predicted_rul": scaled_prediction,
+            "unit_nr": payload.unit_nr,
+            "data": df.to_dict(orient="records")}
+
+
+
+@app.post("/predict_old/")
+async def predict_rul_old(request: Request):
     max_rul = 542  # use the same value you trained with
 
     index_names = ['unit_nr', 'time_cycles']
