@@ -1,67 +1,57 @@
-import os
+import math
+import random
+from typing import Dict, Tuple, List
+
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
-import glob
+from torch.utils.data import Dataset
 
-class VideoFrameDataset(Dataset):
-    def __init__(self, root_dir, sequence_length=5, transform=None):
-        """
-        Args:
-            root_dir (string): Directory with all the video folders.
-            sequence_length (int): How many frames to consider in one sample 
-                                   (e.g., 4 past frames + 1 target frame).
-            transform (callable, optional): Transform to be applied on a sample.
-        """
-        self.root_dir = root_dir
-        self.sequence_length = sequence_length
-        self.transform = transform
-        self.samples = []
 
-        # 1. Index the data
-        # We loop through every video folder and calculate possible sequences
-        video_folders = sorted(os.listdir(root_dir))
-        
-        for vid_folder in video_folders:
-            vid_path = os.path.join(root_dir, vid_folder)
-            if not os.path.isdir(vid_path):
-                continue
-                
-            # Get all frames in this video folder, sorted numerically
-            frames = sorted(glob.glob(os.path.join(vid_path, "*.png")))
-            
-            # Create sliding window sequences
-            # If we have N frames and sequence_length L, we can make N - L + 1 sequences
-            if len(frames) >= sequence_length:
-                for i in range(len(frames) - sequence_length + 1):
-                    # Store the path to the frames, not the images themselves (to save RAM)
-                    self.samples.append(frames[i : i + sequence_length])
+class CmapssRandomCropDataset(Dataset):
+    def __init__(
+        self,
+        sequences_by_unit: Dict[int, torch.Tensor],
+        rul_by_unit: Dict[int, torch.Tensor],
+        samples_per_epoch: int,
+        l_min: int = 20,
+        l_max: int = 200,
+        end_bias_alpha: float = 5.0,
+        end_bias_beta: float = 2.0,
+    ):
+        self.sequences_by_unit = sequences_by_unit
+        self.rul_by_unit = rul_by_unit
+        self.unit_ids = list(sequences_by_unit.keys())
+        self.samples_per_epoch = samples_per_epoch
+        self.l_min = l_min
+        self.l_max = l_max
+        self.end_bias_alpha = end_bias_alpha
+        self.end_bias_beta = end_bias_beta
 
-    def __len__(self):
-        return len(self.samples)
+    def __len__(self) -> int:
+        return self.samples_per_epoch
 
-    def __getitem__(self, idx):
-        # 1. Retrieve the paths for this specific sequence
-        frame_paths = self.samples[idx]
-        
-        # 2. Load images and stack them
-        frames = []
-        for path in frame_paths:
-            img = Image.open(path).convert('RGB') # or 'L' for grayscale
-            if self.transform:
-                img = self.transform(img)
-            frames.append(img)
-            
-        # 3. Stack list of Tensors into one Tensor
-        # Current shape of list: [ (C, H, W), (C, H, W), ... ]
-        # Desired shape: (Time, C, H, W)
-        frames_tensor = torch.stack(frames)
-        
-        # 4. Split into Input (Past) and Target (Future)
-        # Input: All frames except the last one
-        # Target: The last frame (what we want to predict)
-        input_seq = frames_tensor[:-1] 
-        target_frame = frames_tensor[-1]
-        
-        return input_seq, target_frame
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, float, int]:
+        unit_id = random.choice(self.unit_ids)
+
+        x = self.sequences_by_unit[unit_id]
+        y = self.rul_by_unit[unit_id]
+
+        t_max = x.shape[0] - 1
+
+        p = random.betavariate(self.end_bias_alpha, self.end_bias_beta)
+        t = int(p * t_max)
+
+        l_high = min(self.l_max, t + 1)
+
+        if l_high <= self.l_min:
+            l = l_high
+        else:
+            u = random.random()
+            l = int(math.exp(math.log(self.l_min) + u * (math.log(l_high) - math.log(self.l_min))))
+
+        start = t - l + 1
+
+        seq = x[start : t + 1]
+        target = float(y[t].item())
+
+        length = seq.shape[0]
+        return seq, target, length
