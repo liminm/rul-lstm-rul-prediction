@@ -5,6 +5,9 @@ build/
 dist/
 wheels/
 *.egg-info
-
+.git/
+sensor-dashboard/node_modules/
+sensor-dashboard/dist/
+sensor-dashboard/build/
 # Virtual environments
 .venv
