@@ -55,7 +55,7 @@ function App() {
   useEffect(() => {
     const fetchEngines = async () => {
       try {
-        const response = await fetch('http://localhost:8001/engines/');
+        const response = await fetch('/engines/');
         const data = await response.json();
         setAvailableEngines(data);
         if (data.length > 0) {
@@ -72,7 +72,7 @@ function App() {
   useEffect(() => {
     const fetchRulPrediction = async () => {
       try {
-        const response = await fetch('http://localhost:8001/predict/', {
+        const response = await fetch('/predict/', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ function App() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8001/sensors/?limit=500&unit_nr=${selectedEngine}`,
+        `/sensors/?limit=500&unit_nr=${selectedEngine}`,
       );
 
         
