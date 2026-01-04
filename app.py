@@ -8,9 +8,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Query, HTTPException
 from typing import Optional
 
-from model import EngineRULPredictor
+from model import RulLstm
 import joblib
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
 
 #input_size = 24 # Sensors (21) + Settings (3)
 #model = EngineRULPredictor(input_size=input_size, hidden_size=512, num_layers=2, dropout=0.2)
@@ -19,6 +22,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 #model.eval()
 model_path = 'models/lstm_model.pth'
+
+static_dir = Path(__file__).parent / "static"
+
 
 class EngineData(BaseModel):
     unit_nr: int
@@ -65,7 +71,10 @@ async def lifespan(app: FastAPI):
     # 1. Startup logic goes here
     print("Loading model...")
     input_size = 18 # Sensors (21) + Settings (3)
-    model = EngineRULPredictor(input_size=input_size, hidden_size=512, num_layers=2, dropout=0.2)
+
+    model = RulLstm(n_features=input_size, hidden_size=128, num_layers=2, dropout=0.2)
+
+    model 
 
     model.load_state_dict(torch.load('models/lstm_model.pth', map_location=torch.device('cpu')))
     model.eval()
@@ -88,6 +97,11 @@ async def lifespan(app: FastAPI):
 
 # We pass the lifespan function to the FastAPI app
 app = FastAPI(lifespan=lifespan)
+
+if static_dir.exists():
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+
+
 origins = [
     "http://localhost:5173",  # The address of your React App
     "http://127.0.0.1:5173",
@@ -100,6 +114,14 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],
 )
+
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str):
+    index_file = static_dir / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    raise HTTPException(status_code=404, detail="Frontend not built")
+
 
 @app.post("/predict/")
 async def predict_rul(request: Request, payload: EngineRequest):
@@ -127,14 +149,16 @@ async def predict_rul(request: Request, payload: EngineRequest):
 
     # Perform prediction
     with torch.no_grad():
-        prediction = model(input_tensor)
+        length = int(input_tensor.shape[0])
+
+        prediction = model(input_tensor, lengths=torch.tensor([length]))
         print(f"Raw model prediction: {prediction.item()}")
         scaled_prediction = prediction.item() * max_rul
     
     return {"predicted_rul": scaled_prediction,
+            "prediction_raw": prediction.item(),
             "unit_nr": payload.unit_nr,
             "data": df.to_dict(orient="records")}
-
 
 
 @app.post("/predict_old/")
