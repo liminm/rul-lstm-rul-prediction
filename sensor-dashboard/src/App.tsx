@@ -1,14 +1,4 @@
 import { useEffect, useState } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Brush,
-  ResponsiveContainer,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
 import Sparkline from './components/Sparkline';
 
 const SENSOR_NAMES = {
@@ -35,6 +25,7 @@ const SENSOR_NAMES = {
   s_21: 'LPT Coolant Bleed',
 };
 
+
 const SETTING_NAMES = {
   setting_1: 'Altitude',
   setting_2: 'Mach Number',
@@ -43,13 +34,23 @@ const SETTING_NAMES = {
 
 const ALL_SENSOR_NAMES = { ...SENSOR_NAMES, ...SETTING_NAMES };
 
+type SparkPoint = {
+  value: number;
+};
+
+type SensorCard = {
+  id: number;
+  label: string;
+  history: SparkPoint[];
+}
+
 function App() {
-  const [windowRange, setWindowRange] = useState({ startIndex: 0, endIndex: 50 });
-  const [fullHistory, setFullHistory] = useState([]);
   const [selectedEngine, setSelectedEngine] = useState(1);
   const [availableEngines, setAvailableEngines] = useState<number[]>([]);
   const [rulPrediction, setRulPrediction] = useState<number | null>(null);
-  const [sensors, setSensors] = useState([{ id: 1, label: 'Loading...', value: 0, history: [] }]);
+  const [sensors, setSensors] = useState<SensorCard[]>([]);
+
+
 
   useEffect(() => {
     const fetchEngines = async () => {
@@ -93,12 +94,11 @@ function App() {
   const fetchData = async () => {
     try {
       const response = await fetch(
-        `http://127.0.0.1:8001/sensors/?start_cycle=${windowRange.startIndex}&end_cycle=${windowRange.endIndex}&limit=500&unit_nr=${selectedEngine}`,
+        `http://127.0.0.1:8001/sensors/?limit=500&unit_nr=${selectedEngine}`,
       );
-      const data = await response.json();
 
-      const latestReading = data[0];
-      console.log('Latest Reading:', latestReading);
+        
+      const data = await response.json();
 
       const formattedSensors = Object.keys(ALL_SENSOR_NAMES).map((key, index) => ({
         id: index,
@@ -112,24 +112,9 @@ function App() {
     }
   };
 
-  const fetchFullHistory = async () => {
-    try {
-      const response = await fetch(`http://127.0.0.1:8001/sensors/?limit=500&unit_nr=${selectedEngine}`);
-      const data = await response.json();
-      console.log('Full History Data:', data);
-      setFullHistory(data);
-    } catch (err) {
-      console.error('Timeline fetch failed:', err);
-    }
-  };
-
-  useEffect(() => {
-    fetchFullHistory();
-  }, [selectedEngine]);
-
   useEffect(() => {
     fetchData();
-  }, [windowRange, selectedEngine]);
+  }, [selectedEngine]);
 
   return (
     <>
@@ -161,12 +146,6 @@ function App() {
           </span>
         </div>
       </div>
-
-
-
-
-
-
       <div
         style={{
           display: 'grid',
