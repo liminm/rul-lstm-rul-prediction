@@ -84,6 +84,47 @@ docker run --rm -p 8080:8080 cmapss-rul
 ```
 This builds the React UI and serves it alongside the API on `http://localhost:8080`.
 
+
+## Cloud deployment (Google Cloud Run)
+Set your project and region:
+```
+gcloud config set project YOUR_PROJECT_ID
+gcloud config set run/region YOUR_REGION
+```
+
+Enable required services (one-time):
+```
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudbuild.googleapis.com
+```
+
+Create an Artifact Registry repo (one-time):
+```
+gcloud artifacts repositories create rul-repo   --repository-format=docker   --location=YOUR_REGION   --description="RUL app images"
+```
+
+Build and push (Cloud Build):
+```
+gcloud builds submit --tag YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest
+```
+
+Deploy to Cloud Run:
+```
+gcloud run deploy rul-app   --image YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest   --allow-unauthenticated   --port 8080
+```
+
+Fetch the service URL:
+```
+gcloud run services describe rul-app --format='value(status.url)'
+```
+
+Local build alternative (if you cannot use Cloud Build):
+```
+gcloud auth configure-docker YOUR_REGION-docker.pkg.dev
+
+docker build -t YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest .
+docker push YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest
+```
+
 ## Notes
 - The API reads `data/test_FD001.txt`. To serve other subsets, update the file path in `app.py` and retrain/export the model if needed.
 - The API rescales the normalized output by `max_rul = 542` (see `app.py`).
