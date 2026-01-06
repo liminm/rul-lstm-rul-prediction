@@ -462,43 +462,22 @@ def run_trial(
     return train_full(epochs, model, train_loader, val_loader, optimizer, device)
 
 
-def main() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+def run_train(
+    train_sequences_by_unit: Dict[int, torch.Tensor],
+    train_rul_by_unit: Dict[int, torch.Tensor],
+    val_sequences_by_unit: Dict[int, torch.Tensor],
+    val_rul_by_unit: Dict[int, torch.Tensor],
+    feature_cols: List[str]
+) -> None:
 
-    set_seed(SEED)
-
-    download_cmapss_data(data_dir=DATA_DIR)
-
-    train_df, test_df, rul_labels_df = concatenate_fd_data(FD_TAGS, DATA_DIR, COL_NAMES)
-    train_df = drop_unused_columns(train_df)
-    test_df = drop_unused_columns(test_df)
-
-    train_split_df, val_split_df, train_units, val_units = split_by_unit(
-        train_df, val_frac=0.2, seed=SEED
-    )
-
-    scaled_train_split_df, scaled_val_split_df, scaled_test_df = scale_data(
-        train_split_df, val_split_df, test_df
-    )
-    (
-        train_sequences_by_unit,
-        train_rul_by_unit,
-        val_sequences_by_unit,
-        val_rul_by_unit,
-        test_sequences_by_unit,
-        test_targets_by_unit,
-        feature_cols,
-    ) = convert_to_datasets(
-        scaled_train_split_df, scaled_val_split_df, scaled_test_df, rul_labels_df
-    )
-
+    # use the best parameters found from previous hyperparameter tuning in notebook.ipynb
     search_space = {
         "hidden_size": [64],
-        "num_layers": [1, 2],
-        "dropout": [0.0, 0.3],
-        "lr": [1e-3, 2e-3, 5e-4],
-        "weight_decay": [0.0, 1e-4],
-        "batch_size": [16, 32],
+        "num_layers": [1],
+        "dropout": [0.0],
+        "lr": [1e-3],
+        "weight_decay": [0.0],
+        "batch_size": [16],
         "samples_per_epoch": [60000],
         "l_min": [30],
         "l_max": [200],
@@ -536,7 +515,48 @@ def main() -> None:
             f.write(f"{i + 1}\t{val_loss:.6f}\t{params}\n")
             f.flush()
 
-    print("best:", best)
+    return best
+
+
+def main() -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    set_seed(SEED)
+
+    download_cmapss_data(data_dir=DATA_DIR)
+
+    train_df, test_df, rul_labels_df = concatenate_fd_data(FD_TAGS, DATA_DIR, COL_NAMES)
+    train_df = drop_unused_columns(train_df)
+    test_df = drop_unused_columns(test_df)
+
+    train_split_df, val_split_df, train_units, val_units = split_by_unit(
+        train_df, val_frac=0.2, seed=SEED
+    )
+
+    scaled_train_split_df, scaled_val_split_df, scaled_test_df = scale_data(
+        train_split_df, val_split_df, test_df
+    )
+    (
+        train_sequences_by_unit,
+        train_rul_by_unit,
+        val_sequences_by_unit,
+        val_rul_by_unit,
+        test_sequences_by_unit,
+        test_targets_by_unit,
+        feature_cols,
+    ) = convert_to_datasets(
+        scaled_train_split_df, scaled_val_split_df, scaled_test_df, rul_labels_df
+    )
+
+    best = run_train(
+        train_sequences_by_unit,
+        train_rul_by_unit,
+        val_sequences_by_unit,
+        val_rul_by_unit,
+        feature_cols,
+    )
+
+    print(f"Best hyperparameters: {best[1]} with val_loss: {best[0]:.4f}")
 
 
 if __name__ == "__main__":
