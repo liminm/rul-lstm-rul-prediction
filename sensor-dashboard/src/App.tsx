@@ -270,10 +270,12 @@ function App() {
     if (value === null || Number.isNaN(value)) {
       return fallback;
     }
-    return `${value.toFixed(2)} cycles`;
+    return `${Math.round(value)} cycles`;
   };
   const deltaLabel =
-    delta === null ? null : `${delta >= 0 ? '+' : ''}${delta.toFixed(2)} cycles`;
+    delta === null
+      ? null
+      : `${delta >= 0 ? '+' : ''}${Math.round(delta)} cycles`;
   const deltaTone = delta !== null && delta >= 0 ? 'positive' : 'negative';
   const percentileLabel =
     predictionContext?.rulPercentile === null || predictionContext?.rulPercentile === undefined
