@@ -12,7 +12,6 @@ def run_onnx_rul_inference(request, payload, model_path):
     sensor_names = ['s_{}'.format(i) for i in range(1, 22)] 
     col_names = index_names + setting_names + sensor_names
     
-    
     df = pd.read_csv("data/test_FD001.txt", sep=r"\s+", header=None, names=col_names)
     df = df[df.unit_nr == payload.unit_nr]
     observed_cycles = None
