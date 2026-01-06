@@ -23,7 +23,6 @@ sensor-dashboard/build/
 cmaps-jet-engine-simulated-data/
 cmaps-jet-engine-simulated-data.zip
 
-*.ipynb
 *.png
 
 data/
