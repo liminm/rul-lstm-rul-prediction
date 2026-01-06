@@ -140,13 +140,12 @@ app.add_middleware(
 
 @app.post("/predict/", response_model=dict)
 async def predict(request: Request, payload: EngineRequest):
-    scaled_prediction, raw_prediction, true_rul, context = run_onnx_rul_inference(
+    prediction, true_rul, context = run_onnx_rul_inference(
         request, payload, model_path
     )
     return {
-        "predicted_rul": scaled_prediction,
-        "prediction_raw": raw_prediction,
-        "true_rul": true_rul,
+        "predicted_rul": int(prediction),
+        "true_rul": int(true_rul),
         "unit_nr": payload.unit_nr,
         "context": context,
     }
