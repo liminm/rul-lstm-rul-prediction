@@ -41,7 +41,7 @@ FEATURES_TO_DROP = [
     "fd",
 ]
 
-EPOCHS = 10
+EPOCHS = 15
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -473,8 +473,8 @@ def run_train(
     # use the best parameters found from previous hyperparameter tuning in notebook.ipynb
     search_space = {
         "hidden_size": [64],
-        "num_layers": [1],
-        "dropout": [0.0],
+        "num_layers": [2],
+        "dropout": [0.3],
         "lr": [1e-3],
         "weight_decay": [0.0],
         "batch_size": [16],
