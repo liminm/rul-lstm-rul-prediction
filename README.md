@@ -52,6 +52,18 @@ Outputs:
 - `models/lstm_model.onnx`
 - `models/scaler.pkl`
 
+### Training script
+Train from the CLI (mirrors the notebook pipeline):
+```
+python train.py --data-tags FD001,FD003 --epochs 20
+```
+
+Useful options:
+- `--train-units 150` (rest used for validation)
+- `--max-rul auto` (normalize targets by max train RUL)
+- `--max-rul none` (train on raw RUL cycles)
+- `--output-dir models`
+
 ### API (FastAPI)
 ```
 uvicorn app:app --reload --port 8080
