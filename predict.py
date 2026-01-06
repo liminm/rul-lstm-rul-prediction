@@ -26,13 +26,12 @@ def run_onnx_rul_inference(request, payload, model_path):
     if not rul_df.empty:
         true_rul = float(rul_df["rul"].iloc[0])
 
-    df = df.drop(columns=["unit_nr", "time_cycles"])  # Drop non-feature columns for scaling
+    features_to_drop = ["unit_nr", "time_cycles", "setting_3", "s_1", "s_5", "s_10", "s_14", "s_16", "s_18", "s_19"]
+
+    df = df.drop(columns=features_to_drop)  # Drop non-feature columns for scaling
     scaler = request.app.state.scaler
     scaled = scaler.transform(df)
     df = pd.DataFrame(scaled, columns=df.columns, index=df.index)
-
-    features_to_drop = ["s_1", "s_5", "s_10", "s_16", "s_18", "s_19"]
-    df = df.drop(columns=features_to_drop)
 
     input_np = df.to_numpy().astype(np.float32)
     input_np = np.expand_dims(input_np, axis=0)  # Add batch dimension  
@@ -50,7 +49,6 @@ def run_onnx_rul_inference(request, payload, model_path):
     prediction = outputs[0].item()
 
     print(f"Raw ONNX model prediction: {prediction}")
-    scaled_prediction = prediction * max_rul
 
     rul_dist = getattr(request.app.state, "rul_dist", None)
     rul_stats = getattr(request.app.state, "rul_stats", None)
@@ -59,7 +57,7 @@ def run_onnx_rul_inference(request, payload, model_path):
     rul_percentile = None
     if isinstance(rul_dist, np.ndarray) and rul_dist.size > 0:
         rul_percentile = float(
-            np.searchsorted(rul_dist, scaled_prediction, side="right")
+            np.searchsorted(rul_dist, prediction, side="right")
             / rul_dist.size
             * 100
         )
@@ -67,13 +65,13 @@ def run_onnx_rul_inference(request, payload, model_path):
     health_band = None
     health_band_level = None
     if rul_stats and rul_stats.get("p20") is not None:
-        if scaled_prediction <= rul_stats["p20"]:
+        if prediction <= rul_stats["p20"]:
             health_band = "Critical"
             health_band_level = "critical"
-        elif scaled_prediction <= rul_stats["p50"]:
+        elif prediction <= rul_stats["p50"]:
             health_band = "Monitor"
             health_band_level = "monitor"
-        elif scaled_prediction <= rul_stats["p80"]:
+        elif prediction <= rul_stats["p80"]:
             health_band = "Healthy"
             health_band_level = "healthy"
         else:
@@ -92,4 +90,4 @@ def run_onnx_rul_inference(request, payload, model_path):
         "train_cycle_mean": train_cycle_stats.get("mean") if train_cycle_stats else None,
     }
 
-    return scaled_prediction, prediction, true_rul, context
+    return prediction, true_rul, context
