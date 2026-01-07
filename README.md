@@ -71,10 +71,20 @@ To improve generalization, the training loader uses **random temporal crops**:
 - `Dockerfile` - builds UI and serves API.
 
 ## Results and model selection
-- Latest test metrics (cycles): **MAE = TODO**, **RMSE = TODO** (copy from the notebook evaluation cell).
+- Evaluation (test set, cycles): **SmoothL1 = 10.8867**, **MAE = 11.3603**, **RMSE = 16.6115**.
+- Evaluation (validation SmoothL1, cycles): **best = 5.8699** (trial 32 on FD001 split; see `tuning_results.txt`).
 - Model selection: LSTM variants are compared across hidden size, layers, dropout, learning rate, weight decay, and batch size. The final model is chosen by lowest validation loss.
-- Best hyperparameters (latest sweep) are logged in `tuning_results.txt` (example trial):
-  `hidden_size=64`, `num_layers=2`, `dropout=0.3`, `lr=0.001`, `weight_decay=0.0`, `batch_size=16`, `samples_per_epoch=60000`, `l_min=30`, `l_max=200`.
+- Best hyperparameters (trial 32):
+  `hidden_size=64`, `num_layers=2`, `dropout=0.0`, `lr=0.002`, `weight_decay=1e-4`, `batch_size=32`, `samples_per_epoch=60000`, `l_min=30`, `l_max=200`.
+- Model comparison (top 5 trials by validation loss):
+
+| Trial | Val loss (SmoothL1) | Layers | Dropout | LR | Weight decay | Batch size |
+| --- | --- | --- | --- | --- | --- | --- |
+| 32 | 5.8699 | 2 | 0.0 | 2e-3 | 1e-4 | 32 |
+| 19 | 5.9018 | 1 | 0.3 | 2e-3 | 1e-4 | 16 |
+| 7  | 6.1156 | 1 | 0.0 | 2e-3 | 1e-4 | 16 |
+| 29 | 6.1733 | 2 | 0.0 | 2e-3 | 0.0 | 16 |
+| 25 | 6.1906 | 2 | 0.0 | 1e-3 | 0.0 | 16 |
 - Search space used in the sweep (all variations tried, **48 total model variants**):
   - `hidden_size`: [64]
   - `num_layers`: [1, 2]
