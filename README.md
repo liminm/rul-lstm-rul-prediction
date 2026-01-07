@@ -105,6 +105,7 @@ The Vite dev server runs at `http://localhost:5173` and expects the API at `http
 
 ## Using the deployed app
 Once the container is running (locally or on Cloud Run), open the root URL in a browser.
+Deployed app URL: https://rul-app-99998513528.europe-west3.run.app
 
 Dashboard flow:
 - Select an engine from the dropdown.
