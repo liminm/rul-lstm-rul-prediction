@@ -192,9 +192,12 @@ Create an Artifact Registry repo (one-time):
 gcloud artifacts repositories create rul-repo   --repository-format=docker   --location=YOUR_REGION   --description="RUL app images"
 ```
 
-Build and push (Cloud Build):
+Local build:
 ```
-gcloud builds submit --tag YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest
+gcloud auth configure-docker YOUR_REGION-docker.pkg.dev
+
+docker build -t YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest .
+docker push YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest
 ```
 
 Deploy to Cloud Run:
@@ -207,14 +210,5 @@ Fetch the service URL:
 gcloud run services describe rul-app --format='value(status.url)'
 ```
 
-Local build alternative (if you cannot use Cloud Build):
-```
-gcloud auth configure-docker YOUR_REGION-docker.pkg.dev
-
-docker build -t YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest .
-docker push YOUR_REGION-docker.pkg.dev/YOUR_PROJECT_ID/rul-repo/rul-app:latest
-```
-
 ## Notes
 - The API reads `data/test_FD001.txt`. To serve other subsets, update the file path in `app.py` and retrain/export the model if needed.
-- The API rescales the normalized output by `max_rul = 542` (see `app.py`).
