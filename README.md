@@ -18,33 +18,57 @@ Predict remaining useful life (RUL) of turbofan engines from multivariate sensor
 - Export the best model to `models/lstm_model.pth` and `models/lstm_model.onnx`.
 
 ## Repository layout
-- `notebook.ipynb` - data prep, EDA, feature analysis, training, tuning, export.
-- `eda.ipynb` - extra exploration.
+- `data/` - CMAPSS train/test/RUL files and `CMAPSSData.zip`.
+- `notebook.ipynb` - end-to-end EDA + training pipeline.
+- `nasa_jet_engine_predictive_maintenance.ipynb` - additional exploration.
+- `train.py` - training + tuning script (mirrors the notebook flow).
+- `predict.py` - ONNX inference helper.
 - `model.py` - PyTorch LSTM model.
-- `dataset.py` - random-crop dataset for variable-length sequences.
-- `app.py` - FastAPI inference with ONNX Runtime.
-- `app_torch.py` - FastAPI inference with PyTorch.
+- `dataset.py` - datasets + random-crop loader.
+- `app.py` - FastAPI inference API (ONNX Runtime).
 - `models/` - model weights, ONNX export, scaler.
 - `sensor-dashboard/` - React dashboard for engine and sensor plots.
-- `Dockerfile` - container that builds UI and serves API.
+- `requirements.txt` - full Python dependencies.
+- `requirements.infer.txt` - minimal API/runtime dependencies.
+- `Dockerfile` - builds UI and serves API.
 
 ## Setup
-### Python environment
+### 1) Python virtual environment
 ```
 python -m venv .venv
 source .venv/bin/activate
-pip install -e .
+python -m pip install --upgrade pip
+pip install -r requirements.txt
 ```
 
-If you only want to run the API, install the minimal dependencies:
+If you only want the API/runtime dependencies:
 ```
 pip install -r requirements.infer.txt
 ```
 
-### Notebook (EDA + training)
-Run the notebook end-to-end to reproduce preprocessing, EDA, training, tuning, and model export:
+### 2) Frontend dependencies
 ```
-jupyter notebook notebook.ipynb
+cd sensor-dashboard
+npm install
+```
+
+## Data download
+The training script will download and unzip CMAPSS automatically if `data/CMAPSSData.zip` is missing:
+```
+python train.py
+```
+
+Manual download (optional):
+```
+mkdir -p data
+wget https://data.nasa.gov/docs/legacy/CMAPSSData.zip -O data/CMAPSSData.zip
+unzip -o data/CMAPSSData.zip -d data/
+```
+
+## Training
+Train the LSTM (matches the notebook pipeline):
+```
+python train.py
 ```
 
 Outputs:
@@ -52,18 +76,9 @@ Outputs:
 - `models/lstm_model.onnx`
 - `models/scaler.pkl`
 
-### Training script
-Train from the CLI (mirrors the notebook pipeline):
-```
-python train.py --data-tags FD001,FD003 --epochs 20
-```
+To train on different subsets, edit `FD_TAGS` in `train.py`.
 
-Useful options:
-- `--train-units 150` (rest used for validation)
-- `--max-rul auto` (normalize targets by max train RUL)
-- `--max-rul none` (train on raw RUL cycles)
-- `--output-dir models`
-
+## Run locally
 ### API (FastAPI)
 ```
 uvicorn app:app --reload --port 8080
@@ -84,15 +99,19 @@ Useful endpoints:
 ### Frontend dashboard
 ```
 cd sensor-dashboard
-npm install
 npm run dev
 ```
 The Vite dev server runs at `http://localhost:5173` and expects the API at `http://localhost:8080`.
 
-### Docker
+## Docker
+Build the container (uses the Dockerfile in the repo root):
 ```
-docker build -t cmapss-rul .
-docker run --rm -p 8080:8080 cmapss-rul
+docker build -t rul-app .
+```
+
+Run the container locally:
+```
+docker run --rm -p 8080:8080 -e PORT=8080 rul-app
 ```
 This builds the React UI and serves it alongside the API on `http://localhost:8080`.
 
