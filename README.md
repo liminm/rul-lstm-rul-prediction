@@ -2,6 +2,8 @@
 
 Predict remaining useful life (RUL) of turbofan engines from multivariate sensor telemetry. The goal is to estimate how many cycles remain before failure so maintenance can be scheduled proactively.
 
+Deployed app: https://rul-app-99998513528.europe-west3.run.app/
+
 ## Problem description
 Airline and fleet operators need to decide **when to service an engine before failure** based on evolving sensor readings. Each engine operates for many cycles, and sensor patterns gradually degrade as components wear out. The task is to **predict remaining useful life (RUL)** in cycles so maintenance can be scheduled ahead of time, minimizing downtime and avoiding catastrophic failures. The output is a numeric estimate of cycles remaining, plus context (true RUL and delta) to interpret whether the model is over‑ or under‑estimating.
 
@@ -65,7 +67,7 @@ To improve generalization, the training loader uses **random temporal crops**:
 - Model selection: LSTM variants are compared across hidden size, layers, dropout, learning rate, weight decay, and batch size. The final model is chosen by lowest validation loss.
 - Best hyperparameters (latest sweep) are logged in `tuning_results.txt` (example trial):
   `hidden_size=64`, `num_layers=2`, `dropout=0.3`, `lr=0.001`, `weight_decay=0.0`, `batch_size=16`, `samples_per_epoch=60000`, `l_min=30`, `l_max=200`.
-- Search space used in the sweep (all variations tried):
+- Search space used in the sweep (all variations tried, **48 total model variants**):
   - `hidden_size`: [64]
   - `num_layers`: [1, 2]
   - `dropout`: [0.0, 0.3]
