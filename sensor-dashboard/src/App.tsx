@@ -461,7 +461,7 @@ function App() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(6, 1fr)',
           gap: '10px',
           marginTop: '20px',
         }}
