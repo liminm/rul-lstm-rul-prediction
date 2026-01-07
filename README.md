@@ -146,6 +146,8 @@ The API expects these artifacts to exist. If they are missing, run `python train
 To train on different subsets, edit `FD_TAGS`, `search_space`, and `sweep_epochs` in `train.py`.
 
 ## Run locally
+Before running local predictions (FastAPI or Docker), make sure the CMAPSS data is downloaded into `data/`. You can download it directly (manual download), through the notebook, or via `train.py`.
+
 ### API (FastAPI)
 ```
 uvicorn app:app --reload --port 8080
