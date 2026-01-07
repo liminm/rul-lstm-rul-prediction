@@ -103,6 +103,21 @@ npm run dev
 ```
 The Vite dev server runs at `http://localhost:5173` and expects the API at `http://localhost:8080`.
 
+## Using the deployed app
+Once the container is running (locally or on Cloud Run), open the root URL in a browser.
+
+Dashboard flow:
+- Select an engine from the dropdown.
+- Click **Run prediction** to fetch a new RUL estimate.
+- **Predicted RUL** is the model’s estimate of remaining cycles until failure.
+- **True RUL** is the ground-truth remaining cycles (from `RUL_FD001.txt`).
+- **Delta** = predicted − true. Positive means the model overestimates remaining life.
+- Click any mini chart to open the detailed view with the full sensor trace and stats.
+
+API docs:
+- Interactive Swagger docs are available at `/docs` on the running service (e.g., `http://localhost:8080/docs` or your Cloud Run URL + `/docs`).
+- The docs list all endpoints and allow you to submit predictions directly from the browser.
+
 ## Docker
 Build the container (uses the Dockerfile in the repo root):
 ```
