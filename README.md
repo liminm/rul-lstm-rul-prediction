@@ -59,7 +59,6 @@ To improve generalization, the training loader uses **random temporal crops**:
 ## Repository layout
 - `data/` - CMAPSS train/test/RUL files and `CMAPSSData.zip`.
 - `notebook.ipynb` - end-to-end EDA + training pipeline.
-- `nasa_jet_engine_predictive_maintenance.ipynb` - additional exploration.
 - `train.py` - training + tuning script (mirrors the notebook flow).
 - `predict.py` - ONNX inference helper (preprocessing + model call).
 - `model.py` - PyTorch LSTM model.
