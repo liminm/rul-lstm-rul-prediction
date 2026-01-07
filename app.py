@@ -81,6 +81,9 @@ async def lifespan(app: FastAPI):
                  'setting_1', 'setting_2', 'setting_3'] + [f"s_{i}" for i in range(1, 22)]
     raw_df = pd.read_csv("data/test_FD001.txt", sep=r"\s+", header=None, names=col_names)
     app.state.sensor_df = raw_df
+    engine_ids = sorted(raw_df["unit_nr"].unique().tolist())
+    app.state.engine_ids = engine_ids
+    app.state.engine_id_set = set(engine_ids)
 
     train_df = pd.read_csv("data/train_FD001.txt", sep=r"\s+", header=None, names=col_names)
     max_cycle = train_df.groupby("unit_nr")["time_cycles"].max().rename("max_cycle")
@@ -140,6 +143,14 @@ app.add_middleware(
 
 @app.post("/predict/", response_model=dict)
 async def predict(request: Request, payload: EngineRequest):
+    engine_id_set = getattr(request.app.state, "engine_id_set", None)
+    if engine_id_set is None:
+        engine_id_set = set(request.app.state.sensor_df["unit_nr"].unique().tolist())
+    if payload.unit_nr not in engine_id_set:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Engine {payload.unit_nr} not found",
+        )
     prediction, true_rul, context = run_onnx_rul_inference(
         request, payload, model_path
     )
@@ -172,8 +183,10 @@ async def list_sensors(
 
 @app.get("/engines/", response_model=List[int])
 async def list_engines(request: Request):
-    df = request.app.state.sensor_df
-    engine_ids = df["unit_nr"].unique().tolist()
+    engine_ids = getattr(request.app.state, "engine_ids", None)
+    if engine_ids is None:
+        df = request.app.state.sensor_df
+        engine_ids = df["unit_nr"].unique().tolist()
     return engine_ids
 
 static_dir = Path(__file__).parent / "static"
