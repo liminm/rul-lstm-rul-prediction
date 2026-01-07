@@ -16,6 +16,7 @@ Predict remaining useful life (RUL) of turbofan engines from multivariate sensor
 - Build variable-length sequences per engine and train an LSTM (`model.RulLstm`) with SmoothL1 loss.
 - Hyperparameter sweeps are recorded in `tuning_results.txt`.
 - Export the best model to `models/lstm_model.pth` and `models/lstm_model.onnx`.
+- Serve predictions via a FastAPI web service (similar to Flask).
 
 ## Repository layout
 - `data/` - CMAPSS train/test/RUL files and `CMAPSSData.zip`.
@@ -31,6 +32,11 @@ Predict remaining useful life (RUL) of turbofan engines from multivariate sensor
 - `requirements.txt` - full Python dependencies.
 - `requirements.infer.txt` - minimal API/runtime dependencies.
 - `Dockerfile` - builds UI and serves API.
+
+## Results and model selection
+- Final metrics (reported in cycles): add your latest MAE/RMSE from the notebook evaluation.
+- Model selection: include a short summary of variants tried and why the final LSTM configuration was chosen.
+- Best hyperparameters are logged in `tuning_results.txt`.
 
 ## Setup
 ### 1) Python virtual environment
@@ -76,7 +82,9 @@ Outputs:
 - `models/lstm_model.onnx`
 - `models/scaler.pkl`
 
-To train on different subsets, edit `FD_TAGS` in `train.py`.
+The API expects these artifacts to exist. If they are missing, run `python train.py` to generate them.
+
+To train on different subsets, edit `FD_TAGS`, `search_space`, and `sweep_epochs` in `train.py`.
 
 ## Run locally
 ### API (FastAPI)
@@ -118,6 +126,10 @@ Dashboard flow:
 API docs:
 - Interactive Swagger docs are available at `/docs` on the running service (e.g., `http://localhost:8080/docs` or your Cloud Run URL + `/docs`).
 - The docs list all endpoints and allow you to submit predictions directly from the browser.
+
+Web service deployment notes:
+- The backend is a FastAPI service (Flask-like API) and can be run locally or in Docker.
+- The same container image is deployed to Google Cloud Run.
 
 ## Docker
 Build the container (uses the Dockerfile in the repo root):
