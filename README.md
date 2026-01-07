@@ -26,6 +26,16 @@ Airline and fleet operators need to decide **when to service an engine before fa
 - Export the best model to `models/lstm_model.pth` and `models/lstm_model.onnx`.
 - Serve predictions via a FastAPI web service (similar to Flask).
 
+## Why an LSTM
+- Sensor readings are **sequences over time**, and RUL depends on degradation trends rather than a single snapshot.
+- LSTMs capture temporal dependencies and work well with **variable‑length trajectories**.
+- The model can learn progression patterns across sensors without hand‑crafted temporal features.
+
+## Data augmentation (time‑series sampling)
+To improve generalization, the training loader uses **random temporal crops**:
+- **Variable‑length windows**: each sample is a random subsequence between `l_min` and `l_max`.
+- **End‑biased sampling**: crops are sampled with a Beta distribution so later cycles (closer to failure) are seen more often.
+
 ## Repository layout
 - `data/` - CMAPSS train/test/RUL files and `CMAPSSData.zip`.
 - `notebook.ipynb` - end-to-end EDA + training pipeline.
@@ -46,6 +56,16 @@ Airline and fleet operators need to decide **when to service an engine before fa
 - Model selection: LSTM variants are compared across hidden size, layers, dropout, learning rate, weight decay, and batch size. The final model is chosen by lowest validation loss.
 - Best hyperparameters (latest sweep) are logged in `tuning_results.txt` (example trial):
   `hidden_size=64`, `num_layers=2`, `dropout=0.3`, `lr=0.001`, `weight_decay=0.0`, `batch_size=16`, `samples_per_epoch=60000`, `l_min=30`, `l_max=200`.
+- Search space used in the sweep (all variations tried):
+  - `hidden_size`: [64]
+  - `num_layers`: [1, 2]
+  - `dropout`: [0.0, 0.3]
+  - `lr`: [1e-3, 2e-3, 5e-4]
+  - `weight_decay`: [0.0, 1e-4]
+  - `batch_size`: [16, 32]
+  - `samples_per_epoch`: [60000]
+  - `l_min`: [30]
+  - `l_max`: [200]
 - Targets are **not normalized** in `train.py`, so metrics are in raw **cycles**.
 
 ## Setup
