@@ -33,6 +33,7 @@ Airline and fleet operators need to decide **when to service an engine before fa
 - Scale numeric features with MinMaxScaler; store the scaler in `models/scaler.pkl`.
 - Drop non-informative sensors: `s_1`, `s_5`, `s_10`, `s_16`, `s_18`, `s_19`.
 - Build variable-length sequences per engine and train an LSTM (`model.RulLstm`) with SmoothL1 loss.
+- Model parameters are tuned via a hyperparameter sweep (see `tuning_results.txt`).
 - Hyperparameter sweeps are recorded in `tuning_results.txt`.
 - Export the best model to `models/lstm_model.pth` and `models/lstm_model.onnx`.
 - Serve predictions via a FastAPI web service (similar to Flask).
