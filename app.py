@@ -1,24 +1,25 @@
-from typing import List
-
-
-from pydantic import BaseModel, Field
-import numpy as np
-import pandas as pd
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Query, HTTPException
-from typing import Optional
+from pathlib import Path
+from typing import List, Optional
 
 import joblib
+import numpy as np
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 from starlette.responses import FileResponse
 
 from predict import run_onnx_rul_inference
 
-model_path = "models/lstm_model.onnx"
-
-static_dir = Path(__file__).parent / "static"
+MODEL_PATH = Path("models/lstm_model.onnx")
+DATA_DIR = Path("data")
+STATIC_DIR = Path(__file__).parent / "static"
+COL_NAMES = (
+    ["unit_nr", "time_cycles", "setting_1", "setting_2", "setting_3"]
+    + [f"s_{i}" for i in range(1, 22)]
+)
 
 
 class EngineData(BaseModel):
@@ -50,42 +51,27 @@ class EngineData(BaseModel):
     s_21: float
 
 
-class InferencePayload(BaseModel):
-    engine_data_sequence: List[EngineData] = Field(min_length=1, max_length=50)
-
-    def to_dataframe(self) -> pd.DataFrame:
-        data_dicts = [edata.model_dump() for edata in self.engine_data_sequence]
-        return pd.DataFrame(data_dicts)
-
 class EngineRequest(BaseModel):
     unit_nr: int
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Startup logic goes here
     print("Loading model...")
-    input_size = 16 # Sensors (14) + Settings (2)
 
-    #model = RulLstm(n_features=input_size, hidden_size=128, num_layers=2, dropout=0.2)
+    app.state.scaler = joblib.load("models/scaler.pkl")
 
-    #model.load_state_dict(torch.load('models/lstm_model.pth', map_location=torch.device('cpu')))
-    #model.eval()
-
-    #app.state.model = model
-    #app.state.model.eval()
-    
-    app.state.scaler = joblib.load('models/scaler.pkl') # <--- 2. Load the scaler
-
-    col_names = ['unit_nr', 'time_cycles',
-                 'setting_1', 'setting_2', 'setting_3'] + [f"s_{i}" for i in range(1, 22)]
-    raw_df = pd.read_csv("data/test_FD001.txt", sep=r"\s+", header=None, names=col_names)
+    raw_df = pd.read_csv(
+        DATA_DIR / "test_FD001.txt", sep=r"\s+", header=None, names=COL_NAMES
+    )
     app.state.sensor_df = raw_df
     engine_ids = sorted(raw_df["unit_nr"].unique().tolist())
     app.state.engine_ids = engine_ids
     app.state.engine_id_set = set(engine_ids)
 
-    train_df = pd.read_csv("data/train_FD001.txt", sep=r"\s+", header=None, names=col_names)
+    train_df = pd.read_csv(
+        DATA_DIR / "train_FD001.txt", sep=r"\s+", header=None, names=COL_NAMES
+    )
     max_cycle = train_df.groupby("unit_nr")["time_cycles"].max().rename("max_cycle")
     train_df = train_df.merge(max_cycle, left_on="unit_nr", right_index=True)
     train_df["RUL"] = train_df["max_cycle"] - train_df["time_cycles"]
@@ -117,15 +103,10 @@ async def lifespan(app: FastAPI):
         "max": float(max_cycle.max()),
     }
 
-
     yield  # This separates startup from shutdown
-    
-    # 2. Shutdown logic goes here
     print("Shutting down...")
 
-# We pass the lifespan function to the FastAPI app
 app = FastAPI(lifespan=lifespan)
-
 
 origins = [
     "http://localhost:5173",  # The address of your React App
@@ -152,11 +133,11 @@ async def predict(request: Request, payload: EngineRequest):
             detail=f"Engine {payload.unit_nr} not found",
         )
     prediction, true_rul, context = run_onnx_rul_inference(
-        request, payload, model_path
+        request, payload, MODEL_PATH.as_posix()
     )
     return {
         "predicted_rul": int(prediction),
-        "true_rul": int(true_rul),
+        "true_rul": None if true_rul is None else int(true_rul),
         "unit_nr": payload.unit_nr,
         "context": context,
     }
@@ -189,16 +170,14 @@ async def list_engines(request: Request):
         engine_ids = df["unit_nr"].unique().tolist()
     return engine_ids
 
-static_dir = Path(__file__).parent / "static"
-
-if static_dir.exists():
-    assets_dir = static_dir / "assets"
+if STATIC_DIR.exists():
+    assets_dir = STATIC_DIR / "assets"
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
 @app.get("/vite.svg")
 async def vite_svg():
-    svg = static_dir / "vite.svg"
+    svg = STATIC_DIR / "vite.svg"
     if svg.exists():
         return FileResponse(svg)
     raise HTTPException(status_code=404, detail="Not found")
@@ -208,7 +187,7 @@ async def spa_fallback(full_path: str):
     if full_path.startswith(("engines", "sensors", "predict", "docs", "openapi.json")):
         raise HTTPException(status_code=404, detail="Not found")
 
-    index_file = static_dir / "index.html"
+    index_file = STATIC_DIR / "index.html"
     if index_file.exists():
         return FileResponse(index_file)
 
